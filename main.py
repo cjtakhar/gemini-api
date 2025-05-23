@@ -5,67 +5,50 @@ import requests
 import json
 import os
 
-# Try to get the API key from environment variables
+# ✅ Try to get the API key from environment
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Fallback to secrets.json for local development
-if not GEMINI_API_KEY:
-    try:
-        with open("secrets.json") as f:
-            secrets = json.load(f)
-            GEMINI_API_KEY = secrets.get("GEMINI_API_KEY")
-    except FileNotFoundError:
-        raise RuntimeError("GEMINI_API_KEY is not set and secrets.json is missing")
+# ✅ Fallback to secrets.json for local dev only
+if not GEMINI_API_KEY and os.path.exists("secrets.json"):
+    with open("secrets.json") as f:
+        secrets = json.load(f)
+        GEMINI_API_KEY = secrets.get("GEMINI_API_KEY")
 
-# Final safety check
+# ✅ Fail gracefully if still no key
 if not GEMINI_API_KEY:
-    raise RuntimeError("GEMINI_API_KEY could not be loaded from environment or secrets.json")
+    raise RuntimeError("GEMINI_API_KEY is not set and secrets.json is missing")
 
-# Construct Gemini API endpoint
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     f"gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 )
 
-# Create FastAPI app
-app = FastAPI(
-    title="Gemini Question Answering API",
-    description="Ask a question and get a Gemini answer."
-)
+app = FastAPI(title="Gemini Question Answering API")
 
-# Enable CORS for frontend access
+# ✅ CORS for localhost + GitHub Pages
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",       # Dev environment
-        "https://cjtakhar.github.io"  # GitHub Pages
+        "http://localhost:5173",
+        "https://cjtakhar.github.io"
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Request and response models
 class QuestionRequest(BaseModel):
     question: str
 
 class AnswerResponse(BaseModel):
     answer: str
 
-# POST endpoint to ask a question
 @app.post("/ask", response_model=AnswerResponse)
 def ask_question(request: QuestionRequest):
-    print(f"🧠 Received question: {request.question}")  # Debug log
-
+    print(f"🧠 Received question: {request.question}")
     payload = {
         "contents": [
-            {
-                "parts": [
-                    {
-                        "text": request.question
-                    }
-                ]
-            }
+            {"parts": [{"text": request.question}]}
         ]
     }
 
@@ -82,13 +65,13 @@ def ask_question(request: QuestionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse response: {str(e)}")
 
-# Optional: Friendly message at root
-@app.get("/")
-def read_root():
-    return {"message": "Gemini API is live and ready."}
-
-# Universal OPTIONS handler to catch preflight requests
-@app.options("/{rest_of_path:path}")
-async def catch_all_options(request: Request, rest_of_path: str):
-    print(f"🔥 OPTIONS request to /{rest_of_path}")  # Debug log
+# ✅ Respond to preflight CORS checks
+@app.options("/ask")
+def options_ask():
+    print("🔥 Received OPTIONS /ask")
     return {}
+
+# ✅ Friendly root message
+@app.get("/")
+def root():
+    return {"message": "Gemini API is live and ready."}
