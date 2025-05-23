@@ -5,36 +5,54 @@ import requests
 import json
 import os
 
-# Try to get the API key from environment variable
+# ✅ Try to get the API key from environment variables
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# Fallback to secrets.json if not found (local dev only)
+# ✅ Fallback to secrets.json for local development
 if not GEMINI_API_KEY:
-    with open("secrets.json") as f:
-        secrets = json.load(f)
-        GEMINI_API_KEY = secrets["GEMINI_API_KEY"]
+    try:
+        with open("secrets.json") as f:
+            secrets = json.load(f)
+            GEMINI_API_KEY = secrets.get("GEMINI_API_KEY")
+    except FileNotFoundError:
+        raise RuntimeError("GEMINI_API_KEY is not set and secrets.json is missing")
 
+# ✅ Final safety check
 if not GEMINI_API_KEY:
-    raise RuntimeError("GEMINI_API_KEY is not set in environment or secrets.json")
+    raise RuntimeError("GEMINI_API_KEY could not be loaded from environment or secrets.json")
 
-GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+# ✅ Construct Gemini API endpoint
+GEMINI_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/"
+    f"gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
+)
 
-app = FastAPI(title="Gemini Question Answering API", description="Ask a question and get a Gemini answer.")
+# ✅ Create FastAPI app
+app = FastAPI(
+    title="Gemini Question Answering API",
+    description="Ask a question and get a Gemini answer."
+)
 
+# ✅ Enable CORS for frontend access
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "https://cjtakhar.github.io"],  # Local + GitHub Pages
+    allow_origins=[
+        "http://localhost:5173",       # Vite dev server
+        "https://cjtakhar.github.io"  # GitHub Pages
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# ✅ Request and response models
 class QuestionRequest(BaseModel):
     question: str
 
 class AnswerResponse(BaseModel):
     answer: str
 
+# ✅ POST endpoint to ask a question
 @app.post("/ask", response_model=AnswerResponse)
 def ask_question(request: QuestionRequest):
     payload = {
