@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
@@ -8,7 +8,7 @@ import os
 # Try to get the API key from environment variables
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-#  Fallback to secrets.json for local development
+# Fallback to secrets.json for local development
 if not GEMINI_API_KEY:
     try:
         with open("secrets.json") as f:
@@ -17,11 +17,11 @@ if not GEMINI_API_KEY:
     except FileNotFoundError:
         raise RuntimeError("GEMINI_API_KEY is not set and secrets.json is missing")
 
-#  Final safety check
+# Final safety check
 if not GEMINI_API_KEY:
     raise RuntimeError("GEMINI_API_KEY could not be loaded from environment or secrets.json")
 
-#  Construct Gemini API endpoint
+# Construct Gemini API endpoint
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     f"gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
@@ -37,7 +37,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://localhost:5173",       # Vite dev server
+        "http://localhost:5173",       # Dev environment
         "https://cjtakhar.github.io"  # GitHub Pages
     ],
     allow_credentials=True,
@@ -55,6 +55,8 @@ class AnswerResponse(BaseModel):
 # POST endpoint to ask a question
 @app.post("/ask", response_model=AnswerResponse)
 def ask_question(request: QuestionRequest):
+    print(f"🧠 Received question: {request.question}")  # Debug log
+
     payload = {
         "contents": [
             {
@@ -80,7 +82,13 @@ def ask_question(request: QuestionRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse response: {str(e)}")
 
-# Optional root route to show API status
+# Optional: Friendly message at root
 @app.get("/")
 def read_root():
     return {"message": "Gemini API is live and ready."}
+
+# Universal OPTIONS handler to catch preflight requests
+@app.options("/{rest_of_path:path}")
+async def catch_all_options(request: Request, rest_of_path: str):
+    print(f"🔥 OPTIONS request to /{rest_of_path}")  # Debug log
+    return {}
