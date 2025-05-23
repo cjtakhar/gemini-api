@@ -3,24 +3,31 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import requests
 import json
+import os
 
-# Load Gemini API key from secrets.json
-with open("secrets.json") as f:
-    secrets = json.load(f)
+# Try to get the API key from environment variable
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-GEMINI_API_KEY = secrets["GEMINI_API_KEY"]
+# Fallback to secrets.json if not found (local dev only)
+if not GEMINI_API_KEY:
+    with open("secrets.json") as f:
+        secrets = json.load(f)
+        GEMINI_API_KEY = secrets["GEMINI_API_KEY"]
+
+if not GEMINI_API_KEY:
+    raise RuntimeError("GEMINI_API_KEY is not set in environment or secrets.json")
+
 GEMINI_URL = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 
 app = FastAPI(title="Gemini Question Answering API", description="Ask a question and get a Gemini answer.")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],  # React dev server
+    allow_origins=["http://localhost:5173", "https://cjtakhar.github.io"],  # Local + GitHub Pages
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 
 class QuestionRequest(BaseModel):
     question: str
