@@ -5,10 +5,10 @@ import requests
 import json
 import os
 
-# ✅ Try to get the API key from environment variables
+# Try to get the API key from environment variables
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 
-# ✅ Fallback to secrets.json for local development
+#  Fallback to secrets.json for local development
 if not GEMINI_API_KEY:
     try:
         with open("secrets.json") as f:
@@ -17,23 +17,23 @@ if not GEMINI_API_KEY:
     except FileNotFoundError:
         raise RuntimeError("GEMINI_API_KEY is not set and secrets.json is missing")
 
-# ✅ Final safety check
+#  Final safety check
 if not GEMINI_API_KEY:
     raise RuntimeError("GEMINI_API_KEY could not be loaded from environment or secrets.json")
 
-# ✅ Construct Gemini API endpoint
+#  Construct Gemini API endpoint
 GEMINI_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/"
     f"gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
 )
 
-# ✅ Create FastAPI app
+# Create FastAPI app
 app = FastAPI(
     title="Gemini Question Answering API",
     description="Ask a question and get a Gemini answer."
 )
 
-# ✅ Enable CORS for frontend access
+# Enable CORS for frontend access
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -45,14 +45,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ✅ Request and response models
+# Request and response models
 class QuestionRequest(BaseModel):
     question: str
 
 class AnswerResponse(BaseModel):
     answer: str
 
-# ✅ POST endpoint to ask a question
+# POST endpoint to ask a question
 @app.post("/ask", response_model=AnswerResponse)
 def ask_question(request: QuestionRequest):
     payload = {
@@ -79,3 +79,8 @@ def ask_question(request: QuestionRequest):
         return AnswerResponse(answer=answer)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to parse response: {str(e)}")
+
+# Optional root route to show API status
+@app.get("/")
+def read_root():
+    return {"message": "Gemini API is live and ready."}
